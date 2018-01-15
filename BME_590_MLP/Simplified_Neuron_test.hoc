@@ -9,6 +9,7 @@
 // - Exports currents and coordinates with no file type ('currents' 'coordinates')
 
 // To do: ???? add all of the units where I define the variables
+// Here is a new line
 
 load_file("nrngui.hoc")	
 
