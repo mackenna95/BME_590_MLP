@@ -1,0 +1,432 @@
+// Notes: 
+// - This simulates a simplified Pyramidal neuron stimulated at the axon hillock. 
+// - Several lines of code borrowed from other models (Scott Lempka's models)
+// - Size, proportions, and Channel Densities defined in Mainen et al. 1995. 
+// - Neuron size can be changed, base size is 24 um (refering to diameter of neuron) which is consistent with a L5 pyramidal neuron. 
+// - To scale neuron, change variable somaSize to desired soma Diameter (L5: 30-20um; L1: 1-10um) 
+// - Can be accurately scaled from 30um to 5um diameters. 
+// - When neuron is scaled, stimulation parameters must be scaled by hand
+// - Exports currents and coordinates with no file type ('currents' 'coordinates')
+
+// To do: ???? add all of the units where I define the variables
+
+load_file("nrngui.hoc")	
+
+proc model_globals(){
+	
+	somaSize=24 //Defines soma size. Everything will be scaled by this factor. Standard diamter is 24um
+	somaOrig = 24
+	cf=somaSize/somaOrig // correction factor alters length and diameter of neuron based on somaSize 
+	
+	// negative side
+	soma2 = -5*(1*cf)
+	soma1 = soma2-somaOrig*cf
+	dend1 = soma1-950*cf
+	dend2 = dend1-50*cf
+	dendD = 12*cf
+	somaD = 21*cf 
+	
+	// positive side
+	axon1 = 4*(1*cf) // +4
+	axon2 = axon1+20*cf // +24
+	myelin1 = axon2+300*cf // +324
+	axonD = 1*cf // 1
+	
+	// Axon Hillock size defined on line ????
+	
+	// --------------------------------------------------------------
+	// stimulation parameters
+	// --------------------------------------------------------------
+	delay=5 
+	duration = 7 // 6-7
+	amplitude = .66 //.66
+	
+	// --------------------------------------------------------------
+	// reverse stimulation parameters ????
+	// --------------------------------------------------------------
+	duration2 = 17//6
+	amplitude2 = 3 //.3
+	timing = 13
+	
+	tstop=12	//msec//
+	dt=0.025	//msec//
+	steps_per_ms=40
+
+	celsius=37	//degC//
+	v_init=-70	//mV//
+
+	// --------------------------------------------------------------
+	// stimulation parameters ????
+	// --------------------------------------------------------------
+
+	istim = 0.2	//nA	Square pulse current injection		
+	delay = 5	//ms	
+	pw = 900	//ms
+	
+	syndelay = 0.2  //ms	Single alpha synapse at the soma
+	syntau = 0.5	//ms
+	syng = 0.2	//umho
+	syne = 0	//mV
+
+	syndelay_m = 1	//ms	one alpha synapse at each tuft dendrite
+	syntau_m = 1	//ms
+	syng_m = 0.01	//umho
+	syne_m = 0	//mV
+
+
+	// --------------------------------------------------------------
+	// passive & active membrane 
+	// --------------------------------------------------------------
+
+	ra        = 150
+	rm        = 30000
+	c_m       = 0.75
+	cm_myelin = 0.04
+	g_pas_node = 0.02
+	
+	Ek = -90
+	Ena = 60
+	
+	gna_dend = 20
+	gna_node = 30000
+	gna_soma = gna_dend
+	
+	gkv_axon = 2000
+	gkv_soma = 200
+	
+	gca = .3
+	gkm = .1
+	gkca = 3
+	
+	gca_soma = gca
+	gkm_soma = gkm
+	gkca_soma = gkca
+
+	
+}
+model_globals()
+
+
+/* ????
+//Variables Defining Model Scenario Options//
+proc model_options(){
+	opt_excite=3    // 1->intracellular injection; 2->alpha synapse soma; 3-> alpha synapses throughout apical tuft
+}
+model_options()
+*/
+
+create	soma[1], axon[1], axonHillock[9], dend[2], myelin[1]
+
+soma {
+	pt3dclear()
+	nseg=100
+	//L = 44 ????
+	//diam = 44
+	pt3dadd(soma2,0,0, somaD) // 0 end, dend, needs to go to -35
+	pt3dadd(soma1,0,0, somaD) // 1 end, axon hillock needs to end at -5
+	
+	insert pas
+	Ra=ra
+	cm=c_m
+	g_pas=1/rm
+	e_pas=v_init
+
+	insert na
+	gbar_na=gna_soma
+
+	insert kv
+	gbar_kv=gkv_soma
+
+	insert km
+	gbar_km=gkm_soma
+
+	insert kca
+	gbar_kca=gkca_soma
+
+	insert ca
+	gbar_ca=gca_soma
+
+	insert cad
+
+}
+
+
+for (i=0; i<9; i=i+1) { //axonHillock[0] is attached to soma, +3to +4, take 4 and subtract a counter runs 0to8
+	axonHillock[i] {
+		pt3dclear()
+		nseg = 1
+		//L = 1
+		//diam = 4-i*((4-1)/8)  // in paper this section sloped linearly from 4um to 1um over 9 segments
+		pt3dadd((4-(9-i))*cf,0,0, (4-i*((4-1)/8))*cf) //(4-f)*cf ; make f where f starts at 9 and counts down -5 ; f=9-i
+		pt3dadd((5-(9-i))*cf,0,0, (4-i*((4-1)/8))*cf) //(5-f)*cf ; -4
+			//pt3dadd(0,0,0, (4-i*((4-1)/8))*cf) // this is questionable. I might have to incrament this up for hill1,2,3,4...
+			//pt3dadd(1*cf,0,0, (4-i*((4-1)/8))*cf)
+		insert pas
+		Ra=ra
+		cm=c_m
+		g_pas=1/rm
+		e_pas=v_init
+
+		insert na
+		gbar_na=gna_node
+
+		insert kv
+		gbar_kv=gkv_axon
+	}
+
+}
+//*/
+/*
+for (i=0; i<9; i=i+1) {
+	axonHillock[i] {
+		nseg = 1
+		L = 1
+		diam = 4-i*((4-1)/8)  // in paper this section sloped linearly from 4um to 1um over 9 segments
+
+		insert pas
+		Ra=ra
+		cm=c_m
+		g_pas=1/rm
+		e_pas=v_init
+
+		insert na
+		gbar_na=gna_node
+
+		insert kv
+		gbar_kv=gkv_axon
+	}
+
+}
+*/
+
+axon {
+	pt3dclear()
+	nseg=100
+	//L = 15
+	//diam = 1
+	pt3dadd(axon1,0,0, axonD) // +4
+	pt3dadd(axon2,0,0, axonD) // +axon1+20, +24
+	
+	insert pas
+	Ra=ra
+	cm=c_m
+	g_pas=1/rm
+	e_pas=v_init
+
+	insert na
+	gbar_na=gna_node
+
+	insert kv
+	gbar_kv=gkv_axon
+
+}
+
+// This section is needed since it replaces the axon
+myelin {
+	pt3dclear()
+	nseg=100
+	//L = 300
+	//diam = 1
+	pt3dadd(axon2,0,0, axonD) //axon2
+	pt3dadd(myelin1,0,0, axonD) //axon2+300
+	
+	insert pas
+	Ra=ra
+	cm=cm_myelin
+	g_pas=1/rm
+	e_pas=v_init
+
+	insert na
+	gbar_na=gna_dend
+
+}
+
+
+dend[0] {
+
+	pt3dclear()
+	nseg=122
+	//L = 13950
+	//diam = 3 // it sloped from 4.5 to 1.5
+	pt3dadd(dend1,0,0, dendD) // -13985, soma1-13950
+	pt3dadd(soma1,0,0, dendD) // -35, soma1
+	
+	insert pas
+    	Ra = ra 
+    	cm = c_m 
+    	g_pas = 1/rm
+    	e_pas = v_init
+	
+	insert na
+	gbar_na = gna_dend
+	
+	insert km
+	gbar_km  = gkm
+
+	insert kca
+	gbar_kca = gkca
+
+	insert ca
+	gbar_ca = gca
+
+	insert cad
+
+}
+
+dend[1] {
+	pt3dclear()
+	nseg=100
+	//L = 50
+	//diam = 3
+	pt3dadd(dend2,0,0, dendD) // dend1-50, all the way at the end
+	pt3dadd(dend1,0,0, dendD) // dend1
+	
+	insert pas
+    	Ra = ra 
+    	cm = c_m 
+    	g_pas = 1/rm
+    	e_pas = v_init
+	
+	insert na
+	gbar_na = gna_dend
+	
+	insert km
+	gbar_km  = gkm
+
+	insert kca
+	gbar_kca = gkca
+
+	insert ca
+	gbar_ca = gca
+
+	insert cad
+
+}
+
+//	Connect	compartments together. Must go towards soma
+connect dend[1](1), dend[0](0) 
+connect dend[0](1), soma[0](0)
+connect myelin[0](0), axon[0](1)
+connect axon[0](0), axonHillock[8](1)
+connect axonHillock[8](0), axonHillock[7](1)
+connect axonHillock[7](0), axonHillock[6](1)
+connect axonHillock[6](0), axonHillock[5](1)
+connect axonHillock[5](0), axonHillock[4](1)
+connect axonHillock[4](0), axonHillock[3](1)
+connect axonHillock[3](0), axonHillock[2](1)
+connect axonHillock[2](0), axonHillock[1](1)
+connect axonHillock[1](0), axonHillock[0](1)
+connect axonHillock[0](0), soma[0](1)
+// layout of the neuron below
+// [0dend1][0soma1][0axonHillock1][0axon1][0myelin1]
+
+
+// stimulation parameters defined above
+objectvar stim
+axonHillock[4] stim = new IClamp(1) //0,0,0 on the geometry file axonHillock[4](1)
+stim.del = delay
+stim.dur = duration
+stim.amp = amplitude //soma size of 24 should fire at .3 amplitude
+tstop = 30 
+
+// stimulation parameters defined above
+objectvar stim2
+axonHillock[4] stim2 = new IClamp(1) //0,0,0 on the geo file axonHillock[4](1)
+stim2.del = timing
+stim2.dur = duration2
+stim2.amp = -amplitude2 //originally .3, should fire at .3
+
+
+// --------------------------------------------------------------
+// Exports Currents and Geometry
+// --------------------------------------------------------------
+forall {
+	insert extracellular
+	insert xtra
+	}
+	
+load_file("interpxyz.hoc")	// only interpolates sections that have extracellular
+load_file("setpointers.hoc")	// automatically calls grindaway() in interpxyz.hoc
+
+
+// RECORD SECTION POSITIONS
+objref f2
+f2=new File()
+f2.wopen("coordinates") // coordinate file name
+
+f2.printf("name\tx\ty\tz\n")
+
+forall{
+	for (x) if(x!=0 && x!=1){
+		f2.printf("%s(%g)\t%f\t%f\t%f\n", secname(), x, x_xtra(x), y_xtra(x), z_xtra(x))
+	}
+}
+f2.close()
+
+
+// RECORD MEMBRANE CURRENTS
+objref f1
+f1 = new File()
+f1.wopen("currents") // current file name
+
+finitialize()
+fcurrent()
+
+// write 'time' and section names (ms)
+f1.printf("time (ms)\t")
+
+forall {
+	for (x) if(x!=0 && x!=1){
+		f1.printf("%s(%g)\t",secname(),x)
+	}
+}
+
+f1.printf("\n")
+
+
+// write x values (um)
+f1.printf("-1\t")
+forall {
+	for (x) if(x!=0 && x!=1){
+		f1.printf("%f\t",x_xtra(x))
+	}
+}
+
+f1.printf("\n")
+
+
+// write y values (um)
+f1.printf("-1\t")
+forall {
+	for (x) if(x!=0 && x!=1){
+		f1.printf("%f\t",y_xtra(x))
+	}
+}
+
+f1.printf("\n")
+
+
+// write z values (um)
+f1.printf("-1\t")
+forall {
+	for (x) if(x!=0 && x!=1){
+		f1.printf("%f\t",z_xtra(x))
+	}
+}
+
+f1.printf("\n")
+
+
+// write currents (in Amps) - note i_membrane is in mA/cm2 & area is in um2
+proc advance() {
+	f1.printf("%f\t", t)	
+
+	forall {
+			for(x) if (x!=0 && x!=1){
+				f1.printf("%e\t", i_membrane(x)*area(x)*(1e-11))  //current in Amps
+			}
+		}
+		f1.printf("\n")
+	fadvance()
+}
+run()
